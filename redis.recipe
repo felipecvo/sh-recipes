@@ -1,0 +1,153 @@
+#!/bin/bash
+
+set -x
+
+SRC_DIR=/usr/local/src
+
+mkdir -p $SRC_DIR
+
+cd $SRC_DIR
+
+VERSION=redis-2.2.12
+FILE=$VERSION.tar.gz
+
+wget http://redis.googlecode.com/files/$FILE
+
+tar xzf $FILE
+
+rm $FILE
+
+cd $VERSION
+
+make
+
+ln -s $SRC_DIR/$VERSION/src /usr/local/redis
+
+ln -s /usr/local/redis/redis-server /usr/local/bin
+ln -s /usr/local/redis/redis-cli /usr/local/bin
+
+mkdir -p /data/redis/
+
+echo "# Redis configuration file
+
+daemonize yes
+
+pidfile /var/run/redis.pid
+
+port 6379
+
+timeout 300
+
+loglevel verbose
+
+logfile /var/log/redis.log
+
+databases 16
+
+save 900 1
+save 300 10
+save 60 10000
+
+rdbcompression yes
+
+dbfilename dump.rdb
+
+dir /data/redis/
+
+slave-serve-stale-data yes
+
+appendonly no
+
+appendfsync everysec
+
+no-appendfsync-on-rewrite no
+
+slowlog-log-slower-than 10000
+
+slowlog-max-len 1024
+
+vm-enabled no
+
+vm-swap-file /tmp/redis.swap
+
+vm-max-memory 0
+
+vm-page-size 32
+
+vm-pages 134217728
+
+vm-max-threads 4
+
+hash-max-zipmap-entries 512
+hash-max-zipmap-value 64
+
+list-max-ziplist-entries 512
+list-max-ziplist-value 64
+
+set-max-intset-entries 512
+
+activerehashing yes" > /etc/redis.conf
+
+if [ -d /etc/init.d ]
+then
+  echo "#!/bin/sh
+#
+# redis this script starts and stops the redis daemon
+#
+
+REDISPORT=6379
+EXEC=/usr/local/bin/redis-server
+CLIEXEC=/usr/local/bin/redis-cli
+
+PIDFILE=/var/run/redis.pid
+CONF=\"/etc/redis.conf\"
+
+case \"\$1\" in
+  start)
+    if [ -f \$PIDFILE ]
+    then
+      echo \"\$PIDFILE exists, process is already running or crashed\"
+    else
+      echo \"Starting Redis server...\"
+      \$EXEC \$CONF
+    fi
+    ;;
+  stop)
+    if [ ! -f \$PIDFILE ]
+    then
+      echo \"\$PIDFILE does not exist, process is not running\"
+    else
+      PID=\$(cat \$PIDFILE)
+      echo \"Stopping ...\"
+      \$CLIEXEC shutdown
+      while [ -x /proc/\${PID} ]
+      do
+        echo \"Waiting for Redis to shutdown ...\"
+        sleep 1
+      done
+      echo \"Redis stopped\"
+    fi
+    ;;
+  *)
+    echo \"Please use start or stop as first argument\"
+    ;;
+esac" > /etc/init.d/redis
+
+  chmod +x /etc/init.d/redis
+
+  if [ -f /sbin/chkconfig ]
+  then
+    /sbin/chkconfig --add redis
+
+    /sbin/chkconfig redis on
+  fi
+
+  if [ -f /usr/sbin/update-rc.d ]
+  then
+    /usr/sbin/update-rc.d redis defaults
+  fi
+
+  /etc/init.d/redis start
+fi
+
+echo "Redis installed"

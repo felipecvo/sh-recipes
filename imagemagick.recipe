@@ -1,0 +1,93 @@
+#!/bin/bash
+
+FILE=ImageMagick-6.6.8-10
+EXT=.tar.bz2
+
+cd /tmp
+
+#########################################################
+# JPEG
+#########################################################
+has_jpeg() {
+    JPEG=$(whereis libjpeg | awk '{print $2}')
+    if [ -n "$JPEG" ]
+    then
+        JPEG=$(dirname $JPEG)
+        JPEG=$(ls -l $JPEG | grep 'libjpeg.so ->' | grep ^l | awk '{print $11}' | cut -c12)
+
+        if [ "$JPEG" -eq "8" ]
+        then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+install_jpeg() {
+    local tarfile=jpegsrc.v8b.tar.gz
+    local dir=jpeg-8b
+    wget http://www.imagemagick.org/download/delegates/$tarfile
+    tar zxvf $tarfile
+    cd $dir
+    ./configure
+    make
+    [ -f /usr/local/lib/libjpeg.so ] && `rm /usr/local/lib/libjpeg.so`
+    sudo make install
+}
+
+( ! has_jpeg) && install_jpeg
+
+#########################################################
+# PNG
+#########################################################
+has_png() {
+    local png=$(whereis libpng | awk '{print $2}')
+    if [ -n "$png" ]
+    then
+        png=$(dirname $png)
+        png=$(ls -l $png | grep 'libpng.so ->' | grep ^l | awk '{print $11}' | cut -c11)
+
+        if [ "$png" -eq "12" ]
+        then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+install_png() {
+    local file=libpng-1.5.4
+    local ext=.tar.bz2
+    wget http://www.imagemagick.org/download/delegates/$file$ext
+    tar jxvf $file$ext
+    cd $file
+    ./configure
+    make
+    [ -f /usr/local/lib/libpng.so ] && `rm /usr/local/lib/libpng.so`
+    sudo make install
+}
+
+( ! has_png ) && install_png 
+
+#############################################################################
+# ImageMagick
+#############################################################################
+if [ ! -e $FILE ]
+then
+    wget ftp://ftp.imagemagick.org/pub/ImageMagick/$FILE$EXT
+fi
+
+if [ ! -d $FILE ]
+then
+    tar jxvf $FILE$EXT
+fi
+
+cd $FILE/
+
+./configure
+
+make
+
+sudo make install
+
+echo "ImageMagick installed"
